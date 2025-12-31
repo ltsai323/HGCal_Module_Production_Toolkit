@@ -181,10 +181,26 @@ def Option_Parser(argv):
     return options
 
 if __name__ == '__main__':
+    ##### load config. ###
+    ''' content of configuration.yaml
+### used for run.IVscan.sh
+RS232:
+  switch_vitek: 'ASRL/dev/DAQrs232_HVswitch::INSTR'
+  HV_keithley: 'ASRL/dev/DAQrs232_keithley::INSTR'
+
+## configs in run.IVscan.sh
+DBDatabase: 'hgcdb'
+DBHostname: '192.168.50.213'
+DBPassword: ''
+DBUsername: 'postgres'
+inspector: NTULab
+    '''
+    with open('configuration.yaml') as config_file:
+        config = yaml.safe_load(config_file)
 
     options = Option_Parser(sys.argv[1:])
 
-    keithley = Keithley2410('ASRL/dev/ttyUSB0::INSTR')
+    keithley = Keithley2410(config['RS232']['HV_keithley'])
     voltage, current, resistance = keithley.iv_scan(-500)
 
 #    if voltage[-1] > -300.:
@@ -224,8 +240,6 @@ if __name__ == '__main__':
     ##########################################
     #                 Database               #
     ##########################################
-    with open('configuration.yaml') as config_file:
-        config = yaml.safe_load(config_file)
 
     now = datetime.now()
 
