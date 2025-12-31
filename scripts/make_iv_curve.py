@@ -82,15 +82,15 @@ def make_iv_curve(modules: list, config) -> None:
             with connection.cursor() as cursor:
 
                 if data := iv_data_query(cursor, module_name, temperature='> 20'):
-                    plot1 = data
+                    plot1 = [data] if data is not None else None
                     modules_data_room_temp.append( data )
 
                 if data := iv_data_query(cursor, module_name, temperature = '= -40'):
-                    plot2 = data
+                    plot2 = [data] if data is not None else None
                     modules_data_minus40_temp.append( data )
 
                 if data := iv_data_query(cursor, module_name, temperature = '= 20'):
-                    plot3 = data
+                    plot3 = [data] if data is not None else None
                     modules_data_20_temp.append( data )
 
        #makeplot(module_name, modules_data_room_temp[-1:], modules_data_minus40_temp[-1:], modules_data_20_temp[-1:])
