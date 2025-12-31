@@ -20,20 +20,30 @@ def iv_data_query(cursor, module_name:str, temperature:str = '= 20') -> tuple:
         print(f'IV data for {module_name} does not exist at temperature {temperature} !')
         return None
 
-def makeplot(module_name:str, modules_data_room_temp:list, modules_data_minus40_temp:list,
-        modules_data_20_temp:list, islegend:bool = True) -> tuple:
+def makeplot(module_name:str, modules_data_room_temp:list=None, modules_data_minus40_temp:list=None,
+        modules_data_20_temp:list=None, islegend:bool = True) -> tuple:
 
     fig, ax = plt.subplots(figsize=(8.5, 5), layout='constrained')
     ax.grid()
 
-    for voltage, current, temperature, humidity in modules_data_room_temp:
-        ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle='-')
+    #### if module not found in database, it will received a None
+    nothing_plotted = True
+    if modules_data_room_temp is not None:
+        nothing_plotted = False
+        for voltage, current, temperature, humidity in modules_data_room_temp:
+            ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle='-')
 
-    for voltage, current, temperature, humidity in modules_data_minus40_temp:
-        ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle=':')
+    if modules_data_minus40_temp is not None:
+        nothing_plotted = False
+        for voltage, current, temperature, humidity in modules_data_minus40_temp:
+            ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle=':')
 
-    for voltage, current, temperature, humidity in modules_data_20_temp:
-        ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle=':')
+    if modules_data_20_temp is not None:
+        nothing_plotted = False
+        for voltage, current, temperature, humidity in modules_data_20_temp:
+            ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = f'temperature = {temperature}, humidity = {humidity}', linestyle=':')
+    if nothing_plotted:
+        return
 
     ax.set_title(f'{module_name} IV', fontdict={'fontsize':20})
     ax.set_xlabel('Voltage [V]',  fontsize=18)
@@ -59,6 +69,9 @@ def make_iv_curve(modules: list, config) -> None:
 
     for module_name in modules:
 
+        plot1 = None
+        plot2 = None
+        plot3 = None
         with psycopg.connect(
             dbname   = config['database_name'],
             user     = config['user'],
@@ -69,15 +82,19 @@ def make_iv_curve(modules: list, config) -> None:
             with connection.cursor() as cursor:
 
                 if data := iv_data_query(cursor, module_name, temperature='> 20'):
+                    plot1 = data
                     modules_data_room_temp.append( data )
 
                 if data := iv_data_query(cursor, module_name, temperature = '= -40'):
+                    plot2 = data
                     modules_data_minus40_temp.append( data )
 
                 if data := iv_data_query(cursor, module_name, temperature = '= 20'):
+                    plot3 = data
                     modules_data_20_temp.append( data )
 
-        makeplot(module_name, modules_data_room_temp[-1:], modules_data_minus40_temp[-1:], modules_data_20_temp[-1:])
+       #makeplot(module_name, modules_data_room_temp[-1:], modules_data_minus40_temp[-1:], modules_data_20_temp[-1:])
+        makeplot(module_name, plot1, plot2, plot3)
 
     makeplot('summary', modules_data_room_temp, modules_data_minus40_temp, modules_data_20_temp, islegend=False)
 
