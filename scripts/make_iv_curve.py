@@ -39,18 +39,21 @@ def makesummaryplot(plotNAME:str, modules_data_room_temp:dict=None, modules_data
     if modules_data_room_temp is not None:
         run_type = 'room_temp'
         for module_name, modules_data in  modules_data_room_temp.items():
+            if modules_data is None: continue
             for voltage, current, temperature, humidity in modules_data:
                 ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = module_name, linestyle='-')
 
     if modules_data_minus40_temp is not None:
         run_type = 'minus 40'
         for module_name, modules_data in modules_data_minus40_temp.items():
+            if modules_data is None: continue
             for voltage, current, temperature, humidity in modules_data:
                 ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = module_name, linestyle=':')
 
     if modules_data_20_temp is not None:
         run_type = 'plus 20'
         for module_name, modules_data in modules_data_20_temp.items():
+            if modules_data is None: continue
             for voltage, current, temperature, humidity in modules_data:
                 ax.plot(np.abs(np.array(voltage)), np.array(current)*(1e6), label = module_name, linestyle=':')
     if run_type == None:
@@ -132,14 +135,22 @@ def make_iv_curve(modules: list, generateSUMMARY:bool, config) -> None:
         ) as connection:
             with connection.cursor() as cursor:
 
-                if data := iv_data_query(cursor, module_name, temperature='> 20'):
-                    modules_data_room_temp[module_name] = [data] if data is not None else None
+               #if data := iv_data_query(cursor, module_name, temperature='> 20'):
+               #    modules_data_room_temp[module_name] = [data] if data is not None else None
 
-                if data := iv_data_query(cursor, module_name, temperature = '= -40'):
-                    modules_data_minus40_temp[module_name] = [data] if data is not None else None
+               #if data := iv_data_query(cursor, module_name, temperature = '= -40'):
+               #    modules_data_minus40_temp[module_name] = [data] if data is not None else None
 
-                if data := iv_data_query(cursor, module_name, temperature = '= 20'):
-                    modules_data_20_temp[module_name] = [data] if data is not None else None
+               #if data := iv_data_query(cursor, module_name, temperature = '= 20'):
+               #    modules_data_20_temp[module_name] = [data] if data is not None else None
+                data = iv_data_query(cursor, module_name, temperature='> 20')
+                modules_data_room_temp[module_name] = [data] if data is not None else None
+
+                data = iv_data_query(cursor, module_name, temperature = '= -40')
+                modules_data_minus40_temp[module_name] = [data] if data is not None else None
+
+                data = iv_data_query(cursor, module_name, temperature = '= 20')
+                modules_data_20_temp[module_name] = [data] if data is not None else None
 
         if generateSUMMARY is False:
             makeplot(module_name, modules_data_room_temp[module_name], modules_data_minus40_temp[module_name], modules_data_20_temp[module_name])

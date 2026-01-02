@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 # -*- coding: utf-8 -*-
 
@@ -9,6 +10,12 @@ import os, sys
 import numpy as np
 import yaml
 import psycopg2
+import logging
+import sys
+
+log = logging.getLogger(__name__)
+
+
 
 class Keithley2410(Keithley2400):
 
@@ -181,6 +188,13 @@ def Option_Parser(argv):
     return options
 
 if __name__ == '__main__':
+    import os
+    loglevel = os.environ.get('LOG_LEVEL', 'INFO') # DEBUG, INFO, WARNING
+    DEBUG_MODE = True if loglevel == 'DEBUG' else False
+    logLEVEL = getattr(logging, loglevel)
+    logging.basicConfig(stream=sys.stdout,level=logLEVEL,
+            format=f'%(levelname)-7s%(filename)s#%(lineno)s %(funcName)s() >>> %(message)s',
+            datefmt='%H:%M:%S')
     ##### load config. ###
     ''' content of configuration.yaml
 ### used for run.IVscan.sh
