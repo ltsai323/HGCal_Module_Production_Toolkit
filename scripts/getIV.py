@@ -166,7 +166,7 @@ def Option_Parser(argv):
 
     parser.add_option('-M', '--module',
             type='str', dest='module', default='M57',
-            help='Module name'
+            help='Module name. if module name is "0", shutdown keithley'
             )
     parser.add_option('-T', '--temperature',
             type='str', dest='temperature', default='20',
@@ -201,6 +201,14 @@ inspector: NTULab
     options = Option_Parser(sys.argv[1:])
 
     keithley = Keithley2410(config['RS232']['HV_keithley'])
+    ### if '0' as module name: stop keithley
+    if options.module == '0':
+        log.info(f'[StopKeithley] Received a stop command')
+        keithley.ramp_down_to_voltage(0.)
+        keithley.shutdown()
+        exit(0)
+
+    ### normal running
     voltage, current, resistance = keithley.iv_scan(-500)
 
 #    if voltage[-1] > -300.:
