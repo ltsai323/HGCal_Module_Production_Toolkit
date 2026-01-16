@@ -15,6 +15,7 @@ import sys
 
 log = logging.getLogger(__name__)
 
+COMPLIANCE_CURRENT_UPPERLIMIT = 5e-4 ## 500 micron amp
 
 
 class Keithley2410(Keithley2400):
@@ -28,7 +29,7 @@ class Keithley2410(Keithley2400):
         self.use_front_terminals()
 
         # Sets the compliance current to 10 V
-        self.apply_voltage(compliance_current = 1e-4)
+        self.apply_voltage(compliance_current = COMPLIANCE_CURRENT_UPPERLIMIT)
 
         # Sets the source voltage to 0 V
         self.source_voltage = 0
