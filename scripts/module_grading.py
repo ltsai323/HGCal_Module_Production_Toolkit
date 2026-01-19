@@ -340,7 +340,7 @@ def module_grading(config) -> None:
                     VALUES ({module_qc_summary_column_placeholders});
                 """
 
-                cursor2.execute(insert_query, tuple(module_qc_summary.values()))
+                cursor.execute(insert_query, tuple(module_qc_summary.values()))
                 connection.commit()
 
                 print(f"{module_name} has been inserted to config['database_name'] successfully.")
