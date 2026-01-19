@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+import logging
+import sys
+
+log = logging.getLogger(__name__)
+
+
 import psycopg
 from psycopg.rows import dict_row
 import numpy as np
@@ -31,13 +38,16 @@ def is_module_exist(cursor, module_name:str, db_name:str) -> None:
             LIMIT 1;
         """
 
+        log.debug(f'[SQLCMD] Try to find module "{module_name}" in table "{table}".'%(module_name if table.find('module') != -1 else proto_name,))
+        log.debug(f'[SQL] \n{query}')
+        log.debug(f'[SQL ENDED]')
         cursor.execute(query, (module_name if table.find('module') != -1 else proto_name,))
         result = cursor.fetchone()
 
         if not result:
             #print(query)
             #print(item, module_name if table.find('module') != -1 else proto_name )
-            print(f"Value '{module_name}' does not exist in tabel {table} of '{db_name}' database.")
+            log.info(f"Value '{module_name}' does not exist in tabel {table} of '{db_name}' database.")
             exit(1)
 
         if table == 'module_assembly':
@@ -47,6 +57,9 @@ def is_module_exist(cursor, module_name:str, db_name:str) -> None:
                 WHERE module_name = %s
                 ORDER BY module_ass ASC
             """
+            log.debug( '[SQLCMD] Un connected channels. Put this CMD try block to avoid no 2V bias measurements') # asdfg
+            log.debug(f'[SQL] \n{query}')
+            log.debug(f'[SQL ENDED]')
             cursor.execute(query, (module_name,))
             results = cursor.fetchall()[-1]
             proto_name = results['proto_name']
@@ -62,6 +75,9 @@ def readout_info(cursor, module_name):
             ORDER BY mod_pedtest_no ASC
         """
 
+        log.debug( '[SQLCMD] Un connected channels. Put this CMD try block to avoid no 2V bias measurements')
+        log.debug(f'[SQL] \n{query}')
+        log.debug(f'[SQL ENDED]')
         cursor.execute(query, (module_name,))
         results = cursor.fetchall()[-1]
 
@@ -76,7 +92,7 @@ def readout_info(cursor, module_name):
         unconcells = cellid[norm_mask | calib_mask][uncon]
 
     except Exception as e:
-        print('No 2 V bias measurements. Assume no unconnected channel')
+        log.info('No 2 V bias measurements. Assume no unconnected channel')
         unconcells = np.array([])
 
     # Dead channels and noisy channels
@@ -88,6 +104,9 @@ def readout_info(cursor, module_name):
         LIMIT 1;
     """
 
+    log.debug(f'[SQLCMD] Check there is electric QC for "{module_name}" in thermal cycle step (status = 8). If DB returns nothing, switch to electronic QC in completely bonded step (status = 5)')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (module_name,))
     result = cursor.fetchone()
 
@@ -101,6 +120,9 @@ def readout_info(cursor, module_name):
         ORDER BY mod_pedtest_no ASC
     """
 
+    log.debug( '[SQLCMD] According to check result, extract required information from DB')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (module_name,))
     results = cursor.fetchall()[-1]
 
@@ -126,6 +148,9 @@ def iv_info(cursor, module_name):
         WHERE module_name = %s AND temp_c::REAL >= 20 AND inspector != 'test'
         ORDER BY mod_ivtest_no ASC
     """
+    log.debug( '[SQLCMD] Dead channels and noisy channels')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (module_name,))
     results = cursor.fetchall()[-1]
 
@@ -144,6 +169,9 @@ def assembly_info(cursor, module_name):
         WHERE module_name = %s
         ORDER BY module_ass ASC
     """
+    log.debug( '[SQLCMD] Find proto module name from module name')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (module_name,))
     results = cursor.fetchall()[-1]
     proto_name = results['proto_name']
@@ -154,6 +182,9 @@ def assembly_info(cursor, module_name):
         WHERE proto_name = %s AND inspector != 'test'
         ORDER BY proto_row_no ASC
     """
+    log.debug( '[SQLCMD] Fetch proto module QC')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (proto_name,))
     results = cursor.fetchall()[-1]
 
@@ -167,6 +198,9 @@ def assembly_info(cursor, module_name):
         WHERE module_name = %s AND inspector != 'test'
         ORDER BY module_row_no ASC
     """
+    log.debug( '[SQLCMD] Fetch module QC')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query, (module_name,))
     results = cursor.fetchall()[-1]
 
@@ -293,6 +327,9 @@ def module_detection(cursor):
         WHERE status = 8 AND inspector != 'test' AND bias_vol != 2
     """
 
+    log.debug( '[SQLCMD] List the modules which pass the final step (Bolt step, status = 8)')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query)
     result = cursor.fetchall()
     test_module = set( [ r['module_name'] for r in result ] )
@@ -303,6 +340,9 @@ def module_detection(cursor):
         WHERE module_name != 'test'
     """
 
+    log.debug( '[SQLCMD] List the modules put in module_qc_summary table')
+    log.debug(f'[SQL] \n{query}')
+    log.debug(f'[SQL ENDED]')
     cursor.execute(query)
     result = cursor.fetchall()
     existing_module = set( [ r['module_name'] for r in result ] )
@@ -340,12 +380,22 @@ def module_grading(config) -> None:
                     VALUES ({module_qc_summary_column_placeholders});
                 """
 
+                log.debug(f'[SQLCMD] insert query from module "{module_name}":')
+                log.debug(f'[SQL] \n{insert_query}')
+                log.debug(f'[SQL ENDED]')
                 cursor.execute(insert_query, tuple(module_qc_summary.values()))
                 connection.commit()
 
-                print(f"{module_name} has been inserted to config['database_name'] successfully.")
+                log.info(f"{module_name} has been inserted to config['database_name'] successfully.")
 
 if __name__ == '__main__':
+    import os
+    loglevel = os.environ.get('LOG_LEVEL', 'INFO') # DEBUG, INFO, WARNING
+    DEBUG_MODE = True if loglevel == 'DEBUG' else False
+    logLEVEL = getattr(logging, loglevel)
+    logging.basicConfig(stream=sys.stdout,level=logLEVEL,
+    format=f'%(levelname)-7s%(filename)s#%(lineno)s %(funcName)s() >>> %(message)s',
+    datefmt='%H:%M:%S')
 
     with open('configuration.yaml') as config_file:
         config = yaml.safe_load(config_file)
