@@ -37,7 +37,7 @@ class Keithley2410(Keithley2400):
         self.enable_source()
 
         # Sets up to measure current
-        self.measure_current(current=1e-4, auto_range=False)
+        self.measure_current(current=COMPLIANCE_CURRENT_UPPERLIMIT, auto_range=False)
 
     def _is_larger_than_current_voltage(self, voltage:float) -> bool:
 
@@ -73,10 +73,10 @@ class Keithley2410(Keithley2400):
                 self.source_voltage = voltage
                 time.sleep(0.5)
 
-                if abs(self.current) > 1e-4:
+                if abs(self.current) > COMPLIANCE_CURRENT_UPPERLIMIT:
                     self.source_voltage = voltages[i-1]
                     isbreak = True
-                    print('Due to a limited current of 1e-4, the voltage can be only raised to {self.source_voltage} !!')
+                    print('Due to a limited current of {COMPLIANCE_CURRENT_UPPERLIMIT}, the voltage can be only raised to {self.source_voltage} !!')
                     break
 
             print(f'Ramp up to a voltage of {target_voltage} and a current of {self.current}')
