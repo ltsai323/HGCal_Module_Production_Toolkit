@@ -266,6 +266,8 @@ inspector: NTULab
 
     now = datetime.now()
 
+    negative_voltage = [ -1. * abs(v) for v in voltage ]
+
     module_iv_data = {
         'module_name'      : options.module,
         'rel_hum'          : options.humidity,
@@ -273,8 +275,8 @@ inspector: NTULab
         'date_test'        : now.date().strftime("%Y-%m-%d"),
         'time_test'        : now.time().strftime("%H:%M:%S"),
         'inspector'        : config['inspector'],
-        'program_v'        : voltage,
-        'meas_v'           : voltage,
+        'program_v'        : negative_voltage,
+        'meas_v'           : negative_voltage,
         'meas_i'           : current,
         'meas_r'           : resistance,
         'status'           : 8,
