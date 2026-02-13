@@ -136,11 +136,12 @@ class Keithley2410(Keithley2400):
 
             current = self.current
 
-            print(voltage, current)
+            log.info(f'[Recorded value] i_step{i_step:2d} V:{voltage} I:{current}')
 
-            output_voltage.append( abs(voltage) )
-            output_current.append( abs(current) )
-            output_resistance.append( voltage/current )
+            ### convert value from np.float64 to float
+            output_voltage.append( float( -1. * abs(voltage) ) )
+            output_current.append( float( abs(current) ) )
+            output_resistance.append( float( voltage/current ) )
 
             if abs(current) >= 9.5e-5:
                 break
@@ -266,7 +267,6 @@ inspector: NTULab
 
     now = datetime.now()
 
-    negative_voltage = [ -1. * abs(v) for v in voltage ]
 
     module_iv_data = {
         'module_name'      : options.module,
@@ -275,8 +275,8 @@ inspector: NTULab
         'date_test'        : now.date().strftime("%Y-%m-%d"),
         'time_test'        : now.time().strftime("%H:%M:%S"),
         'inspector'        : config['inspector'],
-        'program_v'        : negative_voltage,
-        'meas_v'           : negative_voltage,
+        'program_v'        : voltage,
+        'meas_v'           : voltage,
         'meas_i'           : current,
         'meas_r'           : resistance,
         'status'           : 8,
