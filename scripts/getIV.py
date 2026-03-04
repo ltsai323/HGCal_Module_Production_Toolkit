@@ -125,7 +125,7 @@ class Keithley2410(Keithley2400):
         output_current = []
         output_resistance = []
 
-        step = abs( int( ( final_voltage - initial_voltage ) / 10 ) )
+        step = abs( int( ( final_voltage - initial_voltage ) / 25 ) ) ## scan voltage for every 25V
         voltages = np.linspace( initial_voltage, final_voltage, step+1 )
 
         for i_step, voltage in enumerate(voltages):
