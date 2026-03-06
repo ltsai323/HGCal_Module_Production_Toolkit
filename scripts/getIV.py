@@ -189,14 +189,8 @@ def Option_Parser(argv):
     (options, args) = parser.parse_args(argv)
     return options
 
-if __name__ == '__main__':
-    import os
-    loglevel = os.environ.get('LOG_LEVEL', 'INFO') # DEBUG, INFO, WARNING
-    DEBUG_MODE = True if loglevel == 'DEBUG' else False
-    logLEVEL = getattr(logging, loglevel)
-    logging.basicConfig(stream=sys.stdout,level=logLEVEL,
-            format=f'%(levelname)-7s%(filename)s#%(lineno)s %(funcName)s() >>> %(message)s',
-            datefmt='%H:%M:%S')
+
+def mainfunc():
     ##### load config. ###
     ''' content of configuration.yaml
 ### used for run.IVscan.sh
@@ -225,6 +219,7 @@ inspector: NTULab
         exit(0)
 
     ### normal running
+    keithley.use_rear_terminals() ## use rear terminal
     voltage, current, resistance = keithley.iv_scan(-500)
 
 #    if voltage[-1] > -300.:
@@ -309,3 +304,15 @@ inspector: NTULab
             connection.commit()
 
             #print(f"{module_name} has been inserted to config['database_name'] successfully.")
+
+
+if __name__ == '__main__':
+    import os
+    loglevel = os.environ.get('LOG_LEVEL', 'INFO') # DEBUG, INFO, WARNING
+    DEBUG_MODE = True if loglevel == 'DEBUG' else False
+    logLEVEL = getattr(logging, loglevel)
+    logging.basicConfig(stream=sys.stdout,level=logLEVEL,
+            format=f'%(levelname)-7s%(filename)s#%(lineno)s %(funcName)s() >>> %(message)s',
+            datefmt='%H:%M:%S')
+
+    mainfunc()
