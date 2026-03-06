@@ -27,6 +27,7 @@ class Keithley2410(Keithley2400):
 
         self.reset()
         self.use_front_terminals()
+       #self.use_rear_terminals() ## use rear terminal
 
         # Sets the compliance current to 10 V
         self.apply_voltage(compliance_current = COMPLIANCE_CURRENT_UPPERLIMIT)
@@ -219,7 +220,6 @@ inspector: NTULab
         exit(0)
 
     ### normal running
-    keithley.use_rear_terminals() ## use rear terminal
     voltage, current, resistance = keithley.iv_scan(-500)
 
 #    if voltage[-1] > -300.:
