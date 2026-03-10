@@ -68,7 +68,7 @@ def makesummaryplot(plotNAME:str, modules_data_room_temp:dict=None, modules_data
     #ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower right', ncol=2, borderaxespad=0.)
     #ax.legend(bbox_to_anchor=(1., 0., 1.1, .5), loc='lower right', borderaxespad=0.)
     if islegend:
-        ax.legend(bbox_to_anchor=(1.01, 0., 0.25, .5), loc='lower left', borderaxespad=0., title=run_type)
+        ax.legend(bbox_to_anchor=(1.01, 0., 0.25, .5), loc='lower left', borderaxespad=0., fontsize='x-small', title='module ID')
     plt.tick_params(axis='both', which='minor', direction='in', labelsize=0, length=5, width=1, right=True)
     plt.tick_params(axis='both', which='major', direction='in', labelsize=18, length=7, width=1.5, right=True)
     plt.savefig(f'out/{plotNAME}_IV.png')
@@ -195,11 +195,30 @@ if __name__ == '__main__':
    #make_iv_curve(
    #        [ 'test10M', 'test1M' ],
    #   #    [
-   #   #"320MHB1WDNT0180",
-   #   #"320MLL3WCNT0181",
-   #   #"320MLL3WCNT0182",
-   #   #"320MLR3WCNT0183",
-   #   #"320MLR3WCNT0184",
+   #            '320MHF1WDNT0345',
+   #            '320MHF1WDNT0344',
+   #            '320MHF1WDNT0343',
+   #            '320MHF1WDNT0342',
+   #            '320MHF1WDNT0341',
+   #            '320MHF1WDNT0340',
+   #            '320MHF1WDNT0339',
+   #            '320MHF1WDNT0338',
+   #            '320MHF1WDNT0337',
+   #            '320MHF1WDNT0336',
+   #            '320MHF1WDNT0335',
+   #            '320MHF1WDNT0334',
+   #            '320MHF1WDNT0333',
+   #            '320MHF1WDNT0332',
+   #            '320MHF1WDNT0331',
+   #            '320MHF1WDNT0330',
+   #            '320MHF1WDNT0329',
+   #            '320MHF1WDNT0328',
+   #            '320MHF1WDNT0327',
+   #            '320MHF1WDNT0326',
+   #            '320MHF1WDNT0325',
+   #            '320MHF1WDNT0324',
+   #            '320MHF1WDNT0323',
+   #            '320MHF1WDNT0322',
    #   #],
    #        True,
    #        config
