@@ -127,10 +127,10 @@ def make_iv_curve(modules: list, generateSUMMARY:bool, config) -> None:
     for module_name in modules:
 
         with psycopg.connect(
-            dbname   = config['database_name'],
-            user     = config['user'],
-            password = config['password'],
-            host     = config['host'],
+            dbname   = config['DBDatabase'],
+            user     = config['DBUsername'],
+            password = config['DBPassword'],
+            host     = config['DBHostname'],
             port     = 5432
         ) as connection:
             with connection.cursor() as cursor:

@@ -20,14 +20,26 @@ COMPLIANCE_CURRENT_UPPERLIMIT = 5e-4 ## 500 micron amp
 
 class Keithley2410(Keithley2400):
 
-    def __init__(self, adapter:str = "GPIB0::24::INSTR") -> None:
+    def __init__(self,
+                 resource:str = "ASRL/dev/ttyUSB0::INSTR",
+                 terminal:str = 'Front', ## Front or Rear
+                 wiresPOLARIZATION:str = 'Forward', ## Forward or Reverse
+                 ) -> None:
         super().__init__(
-                adapter,
+                resource,
                 )
 
         self.reset()
-        self.use_front_terminals()
-       #self.use_rear_terminals() ## use rear terminal
+
+        if terminal == 'Front':
+            self.use_front_terminals()
+        elif terminal == 'Rear':
+            self.use_rear_terminals()
+
+        if   wiresPOLARIZATION == 'Forward':
+            self.voltage_multiplier = -1.0
+        elif wiresPOLARIZATION == 'Reverse':
+            self.voltage_multiplier =  1.0
 
         # Sets the compliance current to 10 V
         self.apply_voltage(compliance_current = COMPLIANCE_CURRENT_UPPERLIMIT)
@@ -186,18 +198,25 @@ def Option_Parser(argv):
             type='str', dest='humidity', default='60',
             help='Humidity'
             )
+    parser.add_option('-v', '--max_voltage',
+                      type='int', dest='max_voltage', default=500,
+                      help='absolute maximum voltage for this thermal cycle. '
+                           '(modify "MMTS_hardwares/keithley/WiresPolarization=Reverse" in configuration.yaml for negative voltage")')
 
+    parser.add_option('-i', dest='initialize', action='store_true', help='initialize step. Check hardware connection and other requirement')
     (options, args) = parser.parse_args(argv)
     return options
 
 
-def mainfunc():
+class LoadConf:
     ##### load config. ###
     ''' content of configuration.yaml
 ### used for run.IVscan.sh
-RS232:
-  switch_vitek: 'ASRL/dev/DAQrs232_HVswitch::INSTR'
-  HV_keithley: 'ASRL/dev/DAQrs232_keithley::INSTR'
+MMTS_hardwares:
+  keithley:
+    Resource: ASRL/dev/DAQrs232_keithley::INSTR
+    Terminal: Rear
+    WiresPolarization: Reverse
 
 ## configs in run.IVscan.sh
 DBDatabase: 'hgcdb'
@@ -206,12 +225,72 @@ DBPassword: ''
 DBUsername: 'postgres'
 inspector: NTULab
     '''
-    with open('configuration.yaml') as config_file:
-        config = yaml.safe_load(config_file)
+    def __init__(self,confFILE):
+        with open(confFILE, 'r') as fin:
+            conf = yaml.safe_load(fin)
+        self.DBDatabase = conf['DBDatabase']
+        self.DBHostname = conf['DBHostname']
+        self.DBPassword = conf['DBPassword']
+        self.DBUsername = conf['DBUsername']
+
+        self.inspector = conf['inspector']
+        self.resource = conf['MMTS_hardwares']['keithley']['Resource']
+
+        
+        allowed_terminal = [ 'Front', 'Rear' ]
+        self.terminal = conf['MMTS_hardwares']['keithley']['Terminal']
+        if self.terminal not in allowed_terminal:
+            raise ValueError(
+                   f'[InvalidConfig] terminal supports {allowed_terminal}. '
+                   f'Option "{self.terminal}" is an invalid option. '
+                    'Please check "MMTS_hardwares/keithley/Terminal" option.'
+            )
+
+        allowed_wires_polarization = [ 'Forward', 'Reverse' ]
+        self.wire_polarization = conf['MMTS_hardwares']['keithley']['WiresPolarization']
+        if self.wire_polarization not in allowed_wires_polarization:
+            raise ValueError(
+                   f'[InvalidConfig] WiresPolarization supports {allowed_wires_polarization}. '
+                   f'Option "{self.wire_polarization}" is an invalid option. '
+                    'Please check "MMTS_hardwares/keithley/WiresPolarization" option.'
+            )
+
+def initialize_test(conf, keithleyINST):
+    ''' initialize used hardwares for checking '''
+
+    ### asdf need to add additional test.
+    keithleyINST.beep( 432, 0.5 ) ### check keithley connection looks good 
+    log.info(f'[GoodConnectToKeithley] Everything passed')
+
+    exit(0)
+
+def ping_rs232_dev(conf):
+    import pyvisa
+    rm = pyvisa.ResourceManager()
+    inst = rm.open_resource(conf.resource)
+
+    print(inst.query("*IDN?"))
+
+    
+
+
+def mainfunc():
 
     options = Option_Parser(sys.argv[1:])
 
-    keithley = Keithley2410(config['RS232']['HV_keithley'])
+    conf = LoadConf('configuration.yaml')
+    ping_rs232_dev(conf)
+    
+
+    keithley = Keithley2410(conf.resource, conf.terminal, conf.wire_polarization)
+    #keithley = Keithley2410(config['RS232']['HV_keithley'])
+
+
+
+    if options.initialize:
+        initialize_test(conf, keithley)
+        exit(0)
+
     ### if '0' as module name: stop keithley
     if options.module == '0':
         log.info(f'[StopKeithley] Received a stop command')
@@ -219,39 +298,13 @@ inspector: NTULab
         keithley.shutdown()
         exit(0)
 
-    ### normal running
-    voltage, current, resistance = keithley.iv_scan(-500)
+    ### asdfasfasdfa need to add try and except for make stop
+    if True:
+        ### normal running
+        voltage_destination = abs(options.max_voltage) * keithley.voltage_multiplier
+        log.info(f'[MaxVoltage] {voltage_destination} was set as target voltage in the IV scan.')
+        voltage, current, resistance = keithley.iv_scan(voltage_destination)
 
-#    if voltage[-1] > -300.:
-#        keithley.ramp_up_to_voltage(-300.)
-#    else:
-#        keithley.ramp_down_to_voltage(-300.)
-#
-#    with open('dat_pre_series/{}_{}T_IV.txt'.format(options.module, options.temperature), 'w') as f:
-#        for i in range(len(voltage)):
-#            f.write(f'{voltage[i]} {current[i]} \n')
-#
-#    try:
-#        while True:
-#            time.sleep(1)
-#            print("Wait for the pedestal/Noise test!")
-#
-#    except KeyboardInterrupt:
-#        keithley.ramp_down_to_voltage(-2.)
-#
-#    try:
-#        while True:
-#            time.sleep(1)
-#            print("Wait for the pedestal/Noise test!")
-#
-#    except KeyboardInterrupt:
-#        keithley.ramp_down_to_voltage(0.)
-#        keithley.shutdown()
-
-
-#    with open('{}_{}T_IV.txt'.format(options.module, options.temperature), 'w') as f:
-#        for i in range(len(voltage)):
-#            f.write(f'{voltage[i]} {current[i]} \n')
 
     keithley.ramp_down_to_voltage(0.)
     keithley.shutdown()
@@ -269,7 +322,7 @@ inspector: NTULab
         'temp_c'           : options.temperature,
         'date_test'        : now.date().strftime("%Y-%m-%d"),
         'time_test'        : now.time().strftime("%H:%M:%S"),
-        'inspector'        : config['inspector'],
+        'inspector'        : conf.insepctor,
         'program_v'        : voltage,
         'meas_v'           : voltage,
         'meas_i'           : current,
@@ -283,15 +336,14 @@ inspector: NTULab
 
     # Connect to database
     with psycopg2.connect(
-        dbname   = config['DBDatabase'],
-        user     = config['DBUsername'],
-        password = config['DBPassword'],
-        host     = config['DBHostname'],
+        dbname   = self.DBDatabase,
+        user     = self.DBUsername,
+        password = self.DBPassword,
+        host     = self.DBHostname,
         port     = 5432
     ) as connection:
         with connection.cursor() as cursor:
 
-            #is_module_exist(cursor, options.module, config['DBDatabase'])
 
             print(module_iv_data)
             # Module data insertion
@@ -303,7 +355,6 @@ inspector: NTULab
             cursor.execute(insert_query, tuple(module_iv_data.values()))
             connection.commit()
 
-            #print(f"{module_name} has been inserted to config['database_name'] successfully.")
 
 
 if __name__ == '__main__':
@@ -316,3 +367,4 @@ if __name__ == '__main__':
             datefmt='%H:%M:%S')
 
     mainfunc()
+

@@ -118,15 +118,15 @@ def write_to_database(module_qc_dict: dict, config: dict) -> None:
 
         # Connect to database
         with psycopg.connect(
-            dbname   = config['database_name'],
-            user     = config['user'],
-            password = config['password'],
-            host     = config['host'],
+            dbname   = config['DBDatabase'],
+            user     = config['DBUsername'],
+            password = config['DBPassword'],
+            host     = config['DBHostname'],
             port     = 5432
         ) as connection:
             with connection.cursor() as cursor:
 
-                is_module_exist(cursor, module_name, config['database_name'])
+                is_module_exist(cursor, module_name, config['DBDatabase'])
 
                 # Fetch proto module information from module_assembly table
                 query = f"""
