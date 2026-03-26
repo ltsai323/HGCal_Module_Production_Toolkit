@@ -15,7 +15,7 @@ import sys
 
 log = logging.getLogger(__name__)
 
-COMPLIANCE_CURRENT_UPPERLIMIT = 5e-4 ## 500 micron amp
+COMPLIANCE_CURRENT_UPPERLIMIT = 1e-3 ## 1mA
 
 
 class Keithley2410(Keithley2400):
