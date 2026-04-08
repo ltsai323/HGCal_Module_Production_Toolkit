@@ -198,6 +198,10 @@ def Option_Parser(argv):
             type='str', dest='humidity', default='60',
             help='Humidity'
             )
+    parser.add_option('-m', '--message',
+            type='str', dest='message', default='',
+            help='external message put in "comment". Currently used for put thermal cycle ID'
+    )
     parser.add_option('-v', '--max_voltage',
                       type='int', dest='max_voltage', default=500,
                       help='absolute maximum voltage for this thermal cycle. '
@@ -272,11 +276,17 @@ def ping_rs232_dev(conf):
     print(inst.query("*IDN?"))
 
     
+def testfunc():
+
+    options = Option_Parser(sys.argv[1:])
+    externalMESSAGE = options.message
+    print(externalMESSAGE)
 
 
 def mainfunc():
 
     options = Option_Parser(sys.argv[1:])
+    externalMESSAGE = options.message
 
     conf = LoadConf('configuration.yaml')
     ping_rs232_dev(conf)
@@ -328,7 +338,8 @@ def mainfunc():
         'meas_i'           : current,
         'meas_r'           : resistance,
         'status'           : 8,
-        'status_desc'      : 'Bolted'
+        'status_desc'      : 'Bolted',
+        'comment'          : externalMESSAGE,
     }
 
     module_data_column = ', '.join(module_iv_data.keys())
@@ -367,4 +378,5 @@ if __name__ == '__main__':
             datefmt='%H:%M:%S')
 
     mainfunc()
+   #testfunc()
 
