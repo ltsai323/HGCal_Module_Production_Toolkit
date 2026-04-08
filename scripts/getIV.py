@@ -322,7 +322,7 @@ def mainfunc():
         'temp_c'           : options.temperature,
         'date_test'        : now.date().strftime("%Y-%m-%d"),
         'time_test'        : now.time().strftime("%H:%M:%S"),
-        'inspector'        : conf.insepctor,
+        'inspector'        : conf.inspector,
         'program_v'        : voltage,
         'meas_v'           : voltage,
         'meas_i'           : current,
@@ -336,10 +336,10 @@ def mainfunc():
 
     # Connect to database
     with psycopg2.connect(
-        dbname   = self.DBDatabase,
-        user     = self.DBUsername,
-        password = self.DBPassword,
-        host     = self.DBHostname,
+        dbname   = conf.DBDatabase,
+        user     = conf.DBUsername,
+        password = conf.DBPassword,
+        host     = conf.DBHostname,
         port     = 5432
     ) as connection:
         with connection.cursor() as cursor:
