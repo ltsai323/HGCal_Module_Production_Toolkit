@@ -116,7 +116,7 @@ class Keithley2410(Keithley2400):
 
             return target_voltage, self.current
 
-    def iv_scan(self, final_voltage:float, initial_voltage:float = 0.) -> tuple[np.array, np.array]:
+    def iv_scan(self, final_voltage:float, initial_voltage:float = 0.) -> tuple[np.array, np.array, np.array, np.array]:
 
         """
             IV scan.
@@ -134,6 +134,7 @@ class Keithley2410(Keithley2400):
         else:
             self.ramp_down_to_voltage(initial_voltage)
 
+        assign_voltage = []
         output_voltage = []
         output_current = []
         output_resistance = []
@@ -148,18 +149,22 @@ class Keithley2410(Keithley2400):
             time.sleep(2)
 
             current = self.current
+            measure_v = self.voltage
 
-            log.info(f'[Recorded value] i_step{i_step:2d} V:{voltage} I:{current}')
+            log.info(f'[Recorded value] i_step{i_step:2d} sourceV:{voltage} measure_V:{measure_v} measure_I:{current}')
 
             ### convert value from np.float64 to float
-            output_voltage.append( float( -1. * abs(voltage) ) )
+            assign_voltage.append( float( abs(voltage) ) )
+            output_voltage.append( float( abs(measure_v) ) )
             output_current.append( float( abs(current) ) )
-            output_resistance.append( float( voltage/current ) )
+            output_resistance.append( output_voltage[-1]/output_current[-1] )
 
-            if abs(current) >= 9.5e-5:
-                break
+           # no need to break the data taking since the keithley will handle the compliance current
+           #if abs(current) >= COMPLIANCE_CURRENT_UPPERLIMIT:
+           #    log.warning(f'[EarlyShotdown] Measured current {self.current} exceed compliance current {COMPLIANCE_CURRENT_UPPERLIMIT}')
+           #    break
 
-        return output_voltage, output_current, output_resistance
+        return assign_voltage, output_voltage, output_current, output_resistance
 
 def is_module_exist(cursor, module_name:str, db_name:str) -> None:
 
@@ -313,7 +318,7 @@ def mainfunc():
         ### normal running
         voltage_destination = abs(options.max_voltage) * keithley.voltage_multiplier
         log.info(f'[MaxVoltage] {voltage_destination} was set as target voltage in the IV scan.')
-        voltage, current, resistance = keithley.iv_scan(voltage_destination)
+        program_v, voltage, current, resistance = keithley.iv_scan(voltage_destination)
 
 
     keithley.ramp_down_to_voltage(0.)
@@ -333,7 +338,7 @@ def mainfunc():
         'date_test'        : now.date().strftime("%Y-%m-%d"),
         'time_test'        : now.time().strftime("%H:%M:%S"),
         'inspector'        : conf.inspector,
-        'program_v'        : voltage,
+        'program_v'        : program_v,
         'meas_v'           : voltage,
         'meas_i'           : current,
         'meas_r'           : resistance,
