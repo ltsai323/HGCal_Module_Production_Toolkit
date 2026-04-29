@@ -46,11 +46,13 @@ class Keithley2410(Keithley2400):
 
         # Sets the source voltage to 0 V
         self.source_voltage = 0
+
+       ## Sets up to measure current
+       #self.measure_all()  ## Measure current (A), voltage (V), resistance (Ohm), time (s), and status concurrently.
+        # Enable both measurements
+
         # Enables the source output
         self.enable_source()
-
-        # Sets up to measure current
-        self.measure_current(current=COMPLIANCE_CURRENT_UPPERLIMIT, auto_range=False)
 
     def _is_larger_than_current_voltage(self, voltage:float) -> bool:
 
@@ -142,14 +144,20 @@ class Keithley2410(Keithley2400):
         step = abs( int( ( final_voltage - initial_voltage ) / 25 ) ) ## scan voltage for every 25V
         voltages = np.linspace( initial_voltage, final_voltage, step+1 )
 
+        self.write(":SENS:FUNC 'CURR','VOLT'")
+
         for i_step, voltage in enumerate(voltages):
 
             self.source_voltage = voltage
 
             time.sleep(2)
-
-            current = self.current
-            measure_v = self.voltage
+            '''
+            if I set `self.write(":SENS:FUNC 'CURR','VOLT'")`
+            The variables self.current and self.voltage would record the same value:[-49.93948, -4.947062e-06, 9.91e+37, 1916922.0, 23552.0].
+            which is an array of [voltage, current, resistance, ?, ?]
+            '''
+            current = self.current[1]
+            measure_v = self.current[0]
 
             log.info(f'[Recorded value] i_step{i_step:2d} sourceV:{voltage} measure_V:{measure_v} measure_I:{current}')
 
@@ -339,8 +347,7 @@ def mainfunc():
         'time_test'        : now.time().strftime("%H:%M:%S"),
         'inspector'        : conf.inspector,
         'program_v'        : program_v,
-       #'meas_v'           : voltage,
-        'meas_v'           : program_v, ## currently measured voltage always gave very small value. So use program_v now.
+        'meas_v'           : voltage,
         'meas_i'           : current,
         'meas_r'           : resistance,
         'status'           : 8,
@@ -350,6 +357,7 @@ def mainfunc():
 
     module_data_column = ', '.join(module_iv_data.keys())
     module_data_column_placeholders = ', '.join(['%s'] * len(module_iv_data))
+
 
     # Connect to database
     with psycopg2.connect(
@@ -385,4 +393,5 @@ if __name__ == '__main__':
 
     mainfunc()
    #testfunc()
+
 
