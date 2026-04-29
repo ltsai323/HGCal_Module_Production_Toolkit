@@ -339,7 +339,8 @@ def mainfunc():
         'time_test'        : now.time().strftime("%H:%M:%S"),
         'inspector'        : conf.inspector,
         'program_v'        : program_v,
-        'meas_v'           : voltage,
+       #'meas_v'           : voltage,
+        'meas_v'           : program_v, ## currently measured voltage always gave very small value. So use program_v now.
         'meas_i'           : current,
         'meas_r'           : resistance,
         'status'           : 8,
