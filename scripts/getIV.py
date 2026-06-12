@@ -215,7 +215,7 @@ def Option_Parser(argv):
             )
     parser.add_option('-S', '--station',
             type='str', dest='station', default='test_station',
-            help='station name like "MMTS_5L'
+            help='station name like "MMTS_5L"'
             )
     parser.add_option('-m', '--message',
             type='str', dest='message', default='',
