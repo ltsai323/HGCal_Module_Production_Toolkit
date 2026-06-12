@@ -24,9 +24,11 @@ class Keithley2410(Keithley2400):
                  resource:str = "ASRL/dev/ttyUSB0::INSTR",
                  terminal:str = 'Front', ## Front or Rear
                  wiresPOLARIZATION:str = 'Forward', ## Forward or Reverse
+	 	         baudRATE:int = 9600,
                  ) -> None:
         super().__init__(
                 resource,
+                baud_rate=baudRATE
                 )
 
         self.reset()
@@ -211,6 +213,10 @@ def Option_Parser(argv):
             type='str', dest='humidity', default='60',
             help='Humidity'
             )
+    parser.add_option('-S', '--station',
+            type='str', dest='station', default='test_station',
+            help='station name like "MMTS_5L'
+            )
     parser.add_option('-m', '--message',
             type='str', dest='message', default='',
             help='external message put in "comment". Currently used for put thermal cycle ID'
@@ -271,6 +277,16 @@ inspector: NTULab
                    f'Option "{self.wire_polarization}" is an invalid option. '
                     'Please check "MMTS_hardwares/keithley/WiresPolarization" option.'
             )
+        self.baud_rate = conf['MMTS_hardwares']['keithley'].get('BaudRate', None)
+        if self.baud_rate is None:
+            log.warning(f'[DefaultBaudRate] Since no BaudRate in mmts_configuration.yaml:MMTS_hardwares/keithley, use default value 9600')
+            self.baud_rate = 9600
+        self.baud_rate = int(self.baud_rate)
+        log.info(f'[UsedBaudRate] Use baud rate {self.baud_rate} to connect keithley')
+
+
+
+
 
 def initialize_test(conf, keithleyINST):
     ''' initialize used hardwares for checking '''
@@ -289,23 +305,31 @@ def ping_rs232_dev(conf):
     print(inst.query("*IDN?"))
 
     
-def testfunc():
+def testfunc_show_message():
 
     options = Option_Parser(sys.argv[1:])
     externalMESSAGE = options.message
     print(externalMESSAGE)
 
+def testfunc_show_station():
+
+    options = Option_Parser(sys.argv[1:])
+    print(options.station)
+
+def testfunc():
+   #testfunc_show_message()
+    testfunc_show_station()
+
 
 def mainfunc():
 
     options = Option_Parser(sys.argv[1:])
-    externalMESSAGE = options.message
 
     conf = LoadConf('configuration.yaml')
     ping_rs232_dev(conf)
     
 
-    keithley = Keithley2410(conf.resource, conf.terminal, conf.wire_polarization)
+    keithley = Keithley2410(conf.resource, conf.terminal, conf.wire_polarization, conf.baud_rate)
     #keithley = Keithley2410(config['RS232']['HV_keithley'])
 
 
@@ -352,7 +376,8 @@ def mainfunc():
         'meas_r'           : resistance,
         'status'           : 8,
         'status_desc'      : 'Bolted',
-        'comment'          : externalMESSAGE,
+        'comment'          : options.message,
+        'station_name'     : options.station,
     }
 
     module_data_column = ', '.join(module_iv_data.keys())
@@ -391,7 +416,7 @@ if __name__ == '__main__':
             format=f'%(levelname)-7s%(filename)s#%(lineno)s %(funcName)s() >>> %(message)s',
             datefmt='%H:%M:%S')
 
-    mainfunc()
-   #testfunc()
+   #mainfunc()
+    testfunc()
 
 
