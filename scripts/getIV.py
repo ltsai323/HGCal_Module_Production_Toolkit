@@ -214,8 +214,8 @@ def Option_Parser(argv):
             help='Humidity'
             )
     parser.add_option('-S', '--station',
-            type='str', dest='station', default='test_station',
-            help='station name like "MMTS_5L"'
+            type='str', dest='station', default='test',
+            help='station name like "MMTS_5L" or "test"'
             )
     parser.add_option('-m', '--message',
             type='str', dest='message', default='',
