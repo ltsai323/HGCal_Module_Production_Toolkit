@@ -147,114 +147,95 @@ def acquire_one_voltage_step(
     k: Keithley2400,
     voltage_setpoint: float,
 ):
-    if int(voltage_setpoint) < 200+1:
-        return acquire_one_voltage_step_0to200(k, voltage_setpoint)
-   #if int(voltage_setpoint) < 400+1:
-   #    return acquire_one_voltage_step_200to400(k, voltage_setpoint)
-    return acquire_one_voltage_step_above200II(k, voltage_setpoint)
+    return acquire_one_voltage_step_0to200(k, voltage_setpoint)
+#   if abs(int(voltage_setpoint)) < 200+1:
+#       return acquire_one_voltage_step_0to200(k, voltage_setpoint)
    #return acquire_one_voltage_step_above200(k, voltage_setpoint)
-   #return acquire_one_voltage_step_lazy(k, voltage_setpoint)
-   #return acquire_one_voltage_step_lazy2(k, voltage_setpoint)
 
 
     
-def acquire_one_voltage_step_lazy2(
-    k: Keithley2400,
-    voltage_setpoint: float,
-):
-    ### require NPLC = 10
-    program_V1 = abs(voltage_setpoint)
-    k.source_voltage = k.voltage_multiplier * program_V1 ### set forward or backword voltage
-
-    if USE_FAKE_KEITHLEY:
-        log.warning(f'[FakeData] acquire_one_voltage_step() read fake keithley data for testing algorithm')
-        fake_keithley.select_voltage(program_V1)
-        k = fake_keithley
-
-   #time.sleep(0.5)  # short settling time after voltage change ### not to waiting for 0.5 second
-    step_t0_ns = time.monotonic_ns()
-
-    max_num_samples = int(MAX_STEP_DURATION * SAMPLE_RATE_HZ)
-    period_ns = int(SAMPLE_PERIOD * 1e9)
-
-    current_queue = deque(maxlen=3) ### average latest 1 second current measurement
-    noisy_current_sum, noisy_current_num = 0., 0. ### once noisey current found, sum up the current of whole history and take average ( except first 0.5 second)
-
-
-    abs_meas_v = 0
-    mean_meas_i = 0
-    got_positive_current = False
-    while True:
-        step_time_ns = time.monotonic_ns()
-        current_time_second = (step_time_ns-step_t0_ns) / 1e9
-        if current_time_second > 20.0: ### maximum data taking time is 20 second
-            break
-
-        try:
-            meas_v, meas_i, inst_time, status = read_voltage_current(k)
-            current_queue.append(meas_i)
-
-            if current_time_second < 2.0: continue ### only record current after 2.0 second
-            abs_meas_v = abs(meas_v)
-            mean_meas_i = np.asarray(current_queue).mean()
-            break
-        except Exception as exc:
-            abs_meas_v, mean_meas_i, inst_time, status = "", "", "", ""
-            error = repr(exc)
-            log.error(f'[GotError] error message "{error}"\n\n')
-
-    actual_ns = time.monotonic_ns()
-    log.info(f'[MeasureResult] measure {voltage_setpoint}V: abs_meas_V {abs_meas_v} and meas_I {mean_meas_i}, this measurement used {(actual_ns-step_t0_ns) / 1e9 :.1f} second')
-    return abs_meas_v, mean_meas_i
-def acquire_one_voltage_step_lazy(
-    k: Keithley2400,
-    voltage_setpoint: float,
-):
-    ### require NPLC = 10
-    program_V1 = abs(voltage_setpoint)
-    k.source_voltage = k.voltage_multiplier * program_V1 ### set forward or backword voltage
-
-    if USE_FAKE_KEITHLEY:
-        log.warning(f'[FakeData] acquire_one_voltage_step() read fake keithley data for testing algorithm')
-        fake_keithley.select_voltage(program_V1)
-        k = fake_keithley
-
-   #time.sleep(0.5)  # short settling time after voltage change ### not to waiting for 0.5 second
-    step_t0_ns = time.monotonic_ns()
-
-    max_num_samples = int(MAX_STEP_DURATION * SAMPLE_RATE_HZ)
-    period_ns = int(SAMPLE_PERIOD * 1e9)
-
-    current_queue = deque(maxlen=int(NUM_CURRENT_AVG)) ### average latest 1 second current measurement
-    noisy_current_sum, noisy_current_num = 0., 0. ### once noisey current found, sum up the current of whole history and take average ( except first 0.5 second)
-
-
-    abs_meas_v = 0
-    mean_meas_i = 0
-    got_positive_current = False
-    while True:
-        step_time_ns = time.monotonic_ns()
-        current_time_second = (step_time_ns-step_t0_ns) / 1e9
-        if current_time_second > 20.0: ### maximum data taking time is 20 second
-            break
-
-        try:
-            meas_v, meas_i, inst_time, status = read_voltage_current(k)
-
-            if current_time_second < 2.0: continue ### only record current after 2.0 second
-            abs_meas_v = abs(meas_v)
-            mean_meas_i = meas_i
-            break
-        except Exception as exc:
-            abs_meas_v, mean_meas_i, inst_time, status = "", "", "", ""
-            error = repr(exc)
-            log.error(f'[GotError] error message "{error}"\n\n')
-
-    actual_ns = time.monotonic_ns()
-    log.info(f'[MeasureResult] measure {voltage_setpoint}V: abs_meas_V {abs_meas_v} and meas_I {mean_meas_i}, this measurement used {(actual_ns-step_t0_ns) / 1e9 :.1f} second')
-    return abs_meas_v, mean_meas_i
 
 def acquire_one_voltage_step_0to200(
+    k: Keithley2400,
+    voltage_setpoint: float,
+):
+    ''' monitor current. once stable current measured, then read voltage '''
+    k.write(":SENS:FUNC:CONC OFF")
+    k.write(":SENS:FUNC 'CURR'")
+    k.write(":FORM:ELEM CURR,TIME,STAT")
+    program_V1 = abs(voltage_setpoint)
+    k.source_voltage = k.voltage_multiplier * program_V1 ### set forward or backword voltage
+    k.write(':SENS:CURR:NPLC 10')
+    current_queue = deque(maxlen=4)
+
+    current_queue.clear()
+
+
+    if USE_FAKE_KEITHLEY:
+        log.warning(f'[FakeData] acquire_one_voltage_step() read fake keithley data for testing algorithm')
+        fake_keithley.select_voltage(program_V1)
+        k = fake_keithley
+
+    step_t0_ns = time.monotonic_ns()
+
+
+    abs_meas_v = 0
+    mean_meas_i = None
+
+    skip_number = 0
+    while True:
+        step_time_ns = time.monotonic_ns()
+        current_time_second = (step_time_ns-step_t0_ns) / 1e9
+
+        try:
+           #meas_v, meas_i, inst_time, status = read_voltage_current(k)
+            meas_i, inst_time, status = read_current(k)
+
+            ### case 1 : hit compliance current, use last value
+            keithley_hit_compliance_limit_statuscode = bool(status& (1<<3)) ## check bit3 turned on or not
+            keithley_hit_compliance_limit_numerical  = abs(meas_i) > COMPLIANCE_CURRENT_UPPERLIMIT * 0.95
+            if keithley_hit_compliance_limit_statuscode or keithley_hit_compliance_limit_numerical:
+                mean_meas_i = meas_i
+                log.warning(f'[HitComplianceCurrentLimit] current "{meas_i:.1e}" hits limit {COMPLIANCE_CURRENT_UPPERLIMIT:.1e}. keithley_status {keithley_hit_compliance_limit_statuscode} and myprogram {keithley_hit_compliance_limit_numerical}')
+                break
+
+
+
+            if current_time_second < 1.5: continue ### only record current after 1.5 second
+            current_queue.append(meas_i)
+
+
+            ### normal case
+            if len(current_queue) < current_queue.maxlen:
+                continue ### keep collecting current if the deque is not full
+
+            currents = np.asarray(current_queue)
+
+            sorted_current = np.sort(currents)
+            mean_meas_i = sorted_current[:-1].mean() if sorted_current[:-1].std() < sorted_current[1:].std() else sorted_current[1:].mean() ### remove one point
+            actual_ns = time.monotonic_ns()
+            log.info(f'[MeasureResult] measure {voltage_setpoint}V: meas_I {mean_meas_i}, this measurement used {(actual_ns-step_t0_ns) / 1e9 :.1f} second')
+            break
+        except Exception as exc:
+            mean_meas_i, inst_time, status = "", "", ""
+            error = repr(exc)
+            log.error(f'[GotError] error message "{error}"\n\n')
+            break
+
+    meas_v, inst_time, status = read_voltage(k) ### read voltage at the end
+    abs_meas_v = abs(meas_v)
+    ### if mean_meas_i == 0, that means the current hits upper limit or some error. So use the record the last value
+    if mean_meas_i == None or mean_meas_i == "":
+        log.warning(f'[NoAvgCurrent] Use latest current measurement. This message probably raised due to upper limit')
+        mean_meas_i = current_queue[-1]
+
+    if abs(mean_meas_i) < 1e-12:
+        log.warning(f'[0 Current] MANUAL ASSIGN 0 CURRENT TO 1e-12. maybe some error happened')
+        log.warning(f'[ raw data] currents = "{current_queue}". So the mean value is "{mean_meas_i}"')
+        mean_meas_i = 1e-12 * k.voltage_multiplier
+    return abs_meas_v, mean_meas_i
+
+def acquire_one_voltage_step_0to200II(
     k: Keithley2400,
     voltage_setpoint: float,
 ):
@@ -336,92 +317,6 @@ def acquire_one_voltage_step_0to200(
         mean_meas_i = 1e-12 * k.voltage_multiplier
     return abs_meas_v, mean_meas_i
 
-def acquire_one_voltage_step_above200II(
-    k: Keithley2400,
-    voltage_setpoint: float,
-):
-    ''' monitor current. once stable current measured, then read voltage '''
-    k.write(":SENS:FUNC:CONC OFF")
-    k.write(":SENS:FUNC 'CURR'")
-    k.write(":FORM:ELEM CURR,TIME,STAT")
-    program_V1 = abs(voltage_setpoint)
-    k.source_voltage = k.voltage_multiplier * program_V1 ### set forward or backword voltage
-
-    k.write(":SENS:CURR:NPLC 2" )
-    current_queue = deque(maxlen=11) ### average latest 1 second current measurement
-    current_queue.clear()
-
-
-    if USE_FAKE_KEITHLEY:
-        log.warning(f'[FakeData] acquire_one_voltage_step() read fake keithley data for testing algorithm')
-        fake_keithley.select_voltage(program_V1)
-        k = fake_keithley
-
-    step_t0_ns = time.monotonic_ns()
-
-
-    abs_meas_v = 0
-    mean_meas_i = None
-
-    skip_number = 0
-    while True:
-        step_time_ns = time.monotonic_ns()
-        current_time_second = (step_time_ns-step_t0_ns) / 1e9
-        if current_time_second > 20.0: ### maximum data taking time is 20 second
-            log.warning(f'[TimeoutHappened] single current measurement takes over 20 second, use latest current value.')
-            break
-
-        try:
-           #meas_v, meas_i, inst_time, status = read_voltage_current(k)
-            meas_i, inst_time, status = read_current(k)
-
-            ### case 1 : hit compliance current, use last value
-            keithley_hit_compliance_limit_statuscode = bool(status& (1<<3)) ## check bit3 turned on or not
-            keithley_hit_compliance_limit_numerical  = abs(meas_i) > COMPLIANCE_CURRENT_UPPERLIMIT * 0.95
-            if keithley_hit_compliance_limit_statuscode or keithley_hit_compliance_limit_numerical:
-                mean_meas_i = meas_i
-                log.warning(f'[HitComplianceCurrentLimit] current "{meas_i:.1e}" hits limit {COMPLIANCE_CURRENT_UPPERLIMIT:.1e}. keithley_status {keithley_hit_compliance_limit_statuscode} and myprogram {keithley_hit_compliance_limit_numerical}')
-                break
-
-
-
-            if current_time_second < 1.5: continue ### only record current after 1.5 second
-            current_queue.append(meas_i)
-
-
-            if skip_number > 0: ### skip N data point if recorded data is monotonic increasing or decreasing
-                skip_number -= 1
-                continue
-
-            currents = np.asarray(current_queue)
-
-            ### normal case
-            if len(current_queue) < current_queue.maxlen:
-                continue ### keep collecting current if the deque is not full
-
-
-            sorted_current = np.sort(currents)
-            mean_meas_i = sorted_current[:-1].mean() if sorted_current[:-1].std() < sorted_current[1:].std() else sorted_current[1:].mean() ### remove one point
-            actual_ns = time.monotonic_ns()
-            log.info(f'[MeasureResult] measure {voltage_setpoint}V: meas_I {mean_meas_i}, this measurement used {(actual_ns-step_t0_ns) / 1e9 :.1f} second')
-            break
-        except Exception as exc:
-            mean_meas_i, inst_time, status = "", "", ""
-            error = repr(exc)
-            log.error(f'[GotError] error message "{error}"\n\n')
-
-    meas_v, inst_time, status = read_voltage(k) ### read voltage at the end
-    abs_meas_v = abs(meas_v)
-    ### if mean_meas_i == 0, that means the current hits upper limit or some error. So use the record the last value
-    if mean_meas_i == None:
-        log.warning(f'[NoAvgCurrent] Use latest current measurement. This message probably raised due to upper limit')
-        mean_meas_i = current_queue[-1]
-
-    if abs(mean_meas_i) < 1e-12:
-        log.warning(f'[0 Current] MANUAL ASSIGN 0 CURRENT TO 1e-12. maybe some error happened')
-        log.warning(f'[ raw data] currents = "{current_queue}". So the mean value is "{mean_meas_i}"')
-        mean_meas_i = 1e-12 * k.voltage_multiplier
-    return abs_meas_v, mean_meas_i
 
 def acquire_one_voltage_step_above200(
     k: Keithley2400,
@@ -555,9 +450,9 @@ class Keithley2410(Keithley2400):
 
         # Faster/stable measurement settings
         self.write(":SENS:FUNC 'VOLT','CURR'")
-        self.write(":SENS:VOLT:NPLC 0.1")
+       #self.write(":SENS:VOLT:NPLC 0.1")
        #self.write(":SENS:CURR:NPLC 7" )
-        self.write(":SENS:CURR:NPLC 10" )
+       #self.write(":SENS:CURR:NPLC 10" )
         self.write(":SENS:CURR:RANG:AUTO ON")
         self.write(":SYST:AZER OFF")
         self.write(":DISP:ENAB OFF")
