@@ -5,7 +5,7 @@
 from pymeasure.instruments.keithley import Keithley2400
 from optparse import OptionParser
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os, sys
 import numpy as np
 import yaml
