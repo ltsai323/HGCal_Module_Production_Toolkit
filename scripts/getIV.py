@@ -13,7 +13,12 @@ import psycopg2
 import logging
 import sys
 from collections import deque
-from itertools import pairwise
+try:
+    from itertools import pairwise
+except ImportError:  # Python < 3.10
+    from itertools import tee
+    def pairwise(iterable):
+        a, b = tee(iterable); next(b, None); return zip(a, b)
 
 log = logging.getLogger(__name__)
 
@@ -918,6 +923,44 @@ def testfunc():
    #testfunc_show_station()
     testfunc_put_something_to_DB_AND_skip_keithley()
 
+def grade_iv(data, moduleserial):
+    """
+    Grades a single IV curve with the same criteria as InteractionGUI.grade_module(). data is the IV array with
+    columns [program_v, meas_v, meas_i, meas_r]. Returns '' if the curve cannot be graded.
+
+    Copied (not imported) from external_packages/hgcal-module-testing-gui/DBTools.py: that module pulls in
+    PySimpleGUI/matplotlib/asyncpg and reads its own relative "configuration.yaml" at import time, which would
+    collide with this script's own conf. grade_iv() itself only needs numpy, so it's safe to duplicate here.
+    """
+    v = np.abs(data[:,0])
+    meas_v = np.abs(data[:,1])
+    i = np.abs(data[:,2])
+
+    sen_thickness = moduleserial[6]
+    dep_v = 240 if sen_thickness == '3' else (110 if sen_thickness == '2' else 50)
+    half_dep_v = dep_v / 2
+    below_half = meas_v[meas_v <= half_dep_v]
+    i_at_half_dep_v = float(i[meas_v == below_half.max()][0]) if len(below_half) > 0 else None
+
+    if np.any(v == 500):
+        i_500v = float(i[v == 500][0])
+    elif len(i) > 0 and np.max(i) >= 0.98e-3:
+        i_500v = np.inf # sweep stopped at current compliance before 500V
+    else:
+        return '' # sweep never reached 500V or compliance
+
+    if i_500v < 1e-4:
+        return 'A'
+    elif i_500v < 9.95e-4: # not quite one milliamp so exactly one mA fails grade B
+        return 'B'
+    # C = breakdown at high voltage (current low before V_dep/2); F = high current from start of sweep
+    elif i_at_half_dep_v is None or i_at_half_dep_v <= 1e-5:
+        return 'C'
+    else:
+        return 'F'
+
+
+
 def mainfunc():
 
     options = Option_Parser(sys.argv[1:])
@@ -957,7 +1000,13 @@ def mainfunc():
     #                 Database               #
     ##########################################
 
-
+    iv_curve = np.column_stack([program_v, voltage, current, resistance])
+    try:
+        grade = grade_iv(iv_curve, options.module)
+    except Exception as e:
+        log.warning(f'[Grade] grade_iv failed: {e}')
+        grade = ''
+    log.info(f'[Grade] IV grade for {options.module}: {grade if grade else "Unable to be graded"}')
 
     module_iv_data = {
         'module_name'      : options.module,
@@ -976,7 +1025,8 @@ def mainfunc():
         'comment'          : options.message,
         'station_name'     : options.station,
         'batch_name'       : options.batch,
-        'iteration'        : options.iteration
+        'iteration'        : options.iteration,
+        'grade'            : grade,
     }
 
     module_data_column = ', '.join(module_iv_data.keys())
